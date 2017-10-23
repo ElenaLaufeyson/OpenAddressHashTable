@@ -45,7 +45,8 @@ public class Data<T1,T2> implements Map.Entry<T1,T2> {
 
     @Override
     public String toString() {
-        String keyAndValue = key.toString() + " = " + value.toString();
+        String keyAndValue = key.toString() + "\t\t " + value.toString();
         return keyAndValue;
     }
+    
 }

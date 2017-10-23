@@ -69,10 +69,8 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
             return oldValue;
         }
         
-        if (freeIndex == -1) {
-            freePlaces = 0;
+        if (freeIndex == -1) 
             return null;
-        }
         
         if (tab[freeIndex] == null) {
             tab[freeIndex] = new Data(key, value);
@@ -149,44 +147,10 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
        return false;
     }
     
-    @Override 
-    public Set<T1> keySet() { 
-        Set<T1> allKeys = new LinkedHashSet<>(); 
-        for (int i=0;i<table.length;i++) { 
-            if (table[i] == null || table[i].isFree()) 
-                continue; 
-            allKeys.add(table[i].getKey()); 
-        } 
-        return allKeys; 
-    } 
-
-    
-    @Override 
-    public Set<Entry<T1, T2>> entrySet() { 
-        Set<Entry<T1,T2>> allData = new LinkedHashSet<>(); 
-        for (int i=0;i<table.length;i++) { 
-            if (table[i] == null || table[i].isFree()) 
-                continue; 
-            allData.add(new Data(table[i].getKey(), table[i].getValue())); 
-            } 
-        return allData; 
-    }
-    
     @Override
     public void putAll(Map<? extends T1, ? extends T2> m) {
         for (Map.Entry entry: m.entrySet()) 
             put((T1)entry.getKey(), (T2)entry.getValue());
-    }
-    
-    @Override 
-    public Collection<T2> values() { 
-       List list = new LinkedList(); 
-       for (int i=0;i<table.length;i++) { 
-           if (table[i] == null || table[i].isFree()) 
-              continue; 
-           list.add(table[i].getValue()); 
-       } 
-       return (Collection)list; 
     }
     
     public int hashFunction(T1 key) {
@@ -210,5 +174,170 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         }
         System.out.println("");            
     }
+    
 
+    
+    static final int KEYS = 0;
+    static final int VALUES = 1;
+    static final int ENTRIES = 2;
+    
+    public synchronized Enumeration<T1> keys() { 
+        return this.<T1>getEnumeration(KEYS); 
+    }
+    
+     public synchronized Enumeration<T2> elements() {
+        return this.<T2>getEnumeration(VALUES);
+    }
+
+    private <T> Enumeration<T> getEnumeration(int type) {
+        if (size() == 0) {
+            return Collections.emptyEnumeration();
+        } else {
+            return new OpenAdressTable.Enumerator(type, false);
+        }
+    }
+
+    private <T> Iterator<T> getIterator(int type) {
+        if (size() == 0) {
+            return Collections.emptyIterator();
+        } else {
+            return new OpenAdressTable.Enumerator(type, true);
+        }
+
+    }
+
+    private class Enumerator<T> implements Enumeration<T>, Iterator<T> {
+
+        int index = -1;
+        Entry<T1, T2> entry;
+        int type;
+        boolean iterator;
+
+        Enumerator(int type, boolean iterator) {
+            this.type = type;
+            this.iterator = iterator;
+        }
+
+        @Override
+        public boolean hasMoreElements() {
+            Entry<T1, T2> e = entry;
+            if (index >= table.length) {
+                entry = null;
+                index = -1;
+                return false;
+            }
+            int i = index;
+            Entry<T1, T2> t[] = table;
+            while (e == null && i < table.length-1) {
+                e = t[++i];
+            }
+            entry = e;
+            index = i;
+            return e != null;
+        }
+
+        @Override
+        public T nextElement() {
+            Entry<T1, T2> e = entry;
+            int i = index;
+            Entry<T1, T2> t[] = table;
+            while (e == null && i < table.length-1) {
+                e = t[++i];
+            }
+            index = ++i;
+            if (i < table.length)
+                entry = t[i];
+            if (e != null) {
+                if (type == KEYS) {
+                    return (T) e.getKey();
+                } else if (type == VALUES) {
+                    return (T) e.getValue();
+                } else {
+                    return (T) e;
+                }  
+            }
+            return null;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return hasMoreElements();
+        }
+
+        @Override
+        public T next() {
+            return nextElement();
+        }
+    }
+    
+    
+    private Set<T1> keySet;
+    
+    @Override
+    public Set<T1> keySet() {
+        if (keySet != null) 
+            return keySet;
+        keySet = Collections.synchronizedSet(new classKeySet());
+        return keySet;
+    }
+    
+    private class classKeySet extends AbstractSet<T1> {
+        @Override
+        public Iterator<T1> iterator() {
+            return getIterator(KEYS);
+        }
+
+        @Override
+        public int size() {
+            return OpenAdressTable.this.size();
+        }
+    }
+    
+
+    private Set<Entry<T1, T2>> entrySet;
+    
+    @Override
+    public Set<Entry<T1, T2>> entrySet() {
+        if (entrySet != null) 
+            return entrySet;
+        entrySet = Collections.synchronizedSet(new classEntrySet());
+        return entrySet;
+    }
+    
+    private class classEntrySet extends AbstractSet<Map.Entry<T1, T2>> {
+
+        @Override
+        public Iterator<Entry<T1, T2>> iterator() {
+            return getIterator(ENTRIES);
+        }
+
+        @Override
+        public int size() {
+            return OpenAdressTable.this.size();
+        }
+    }
+
+    
+    private Collection<T2> values;
+    
+    @Override
+    public Collection<T2> values() {
+        if (values != null) 
+            return values;
+        values = Collections.synchronizedSet(new classValues());
+        return values;
+    }
+    
+    private class classValues extends AbstractSet<T2> {
+
+        @Override
+        public Iterator<T2> iterator() {
+            return getIterator(VALUES);
+        }
+
+        @Override
+        public int size() {
+            return OpenAdressTable.this.size();
+        }
+    }
 }
