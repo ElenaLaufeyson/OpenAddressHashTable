@@ -24,7 +24,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         return keyIndex(key, table);
     }
     
-    private int keyIndex(T1 key, Data tab[]) {
+    private int keyIndex(T1 key, Data<T1,T2> tab[]) {
         int hashIndex = hashFunction(key);
         int i = hashIndex;
         freeIndex = -1;
@@ -49,7 +49,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         if (freeIndex == -1) { //мест нет
             sizeOfTable = table.length * howEnlarge; //увеличиваем таблицу
             freePlaces = sizeOfTable; //создаем новую пустую увеличенную таблицу
-            Data newTable[] = new Data[sizeOfTable];
+            Data<T1,T2> newTable[] = new Data[sizeOfTable];
             for (int i=0;i<table.length;i++) { //из старой таблицы пихаем все в новую
                 put(table[i].getKey(),table[i].getValue(), newTable);
             }
@@ -60,10 +60,10 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         return oldValue;
     }
     
-    private T2 put(T1 key, T2 value, Data tab[]) {
+    private T2 put(T1 key, T2 value, Data<T1,T2> tab[]) {
         int keyInd = keyIndex(key, tab);
         if (keyInd != -1) { //в таблице есть такой ключ
-            T2 oldValue = (T2)tab[keyInd].getValue();
+            T2 oldValue = tab[keyInd].getValue();
             table[keyInd].setValue(value);
             freeIndex = keyInd;
             return oldValue;
@@ -221,14 +221,12 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         @Override
         public boolean hasMoreElements() {
             Entry<T1, T2> e = entry;
-            if (index >= table.length) {
-                entry = null;
-                index = -1;
-                return false;
-            }
             int i = index;
             Entry<T1, T2> t[] = table;
-            while (e == null && i < table.length-1) {
+            if (index >= table.length)
+                return false;
+            while (i < table.length-1 &&
+                    (e == null || table[i].isFree())) { //пропускаю удаленные элементы
                 e = t[++i];
             }
             entry = e;
@@ -238,15 +236,12 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
 
         @Override
         public T nextElement() {
-            Entry<T1, T2> e = entry;
-            int i = index;
-            Entry<T1, T2> t[] = table;
-            while (e == null && i < table.length-1) {
-                e = t[++i];
-            }
-            index = ++i;
-            if (i < table.length)
-                entry = t[i];
+            if (!hasMoreElements())
+                throw new NoSuchElementException("Error out of table");
+            Entry<T1, T2> e = table[index];
+            index++;
+            if (index - 1 < table.length)
+                entry = table[index - 1];
             if (e != null) {
                 if (type == KEYS) {
                     return (T) e.getKey();
@@ -256,7 +251,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
                     return (T) e;
                 }  
             }
-            return null;
+            throw new NoSuchElementException("Error out of table");
         }
 
         @Override
@@ -268,6 +263,15 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public T next() {
             return nextElement();
         }
+
+        @Override
+        public void remove() { //Iterator.remove
+            System.out.println("Iterator.remove");
+            if (index <= 0 || index >= table.length) 
+                throw new NoSuchElementException("out of table (remove)");
+            OpenAdressTable.this.remove(table[--index].getKey());
+        }
+        
     }
     
     
@@ -277,7 +281,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
     public Set<T1> keySet() {
         if (keySet != null) 
             return keySet;
-        keySet = Collections.synchronizedSet(new classKeySet());
+        keySet = new classKeySet();
         return keySet;
     }
     
@@ -291,6 +295,23 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public int size() {
             return OpenAdressTable.this.size();
         }
+
+        @Override
+        public boolean contains(Object o) {
+            return OpenAdressTable.this.containsKey((T1)o);
+        }
+
+        @Override
+        public void clear() {
+            OpenAdressTable.this.clear();
+            return;
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            System.out.println("remove keySet");
+            return OpenAdressTable.this.remove((T1)o) != null;
+        }
     }
     
 
@@ -300,12 +321,13 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
     public Set<Entry<T1, T2>> entrySet() {
         if (entrySet != null) 
             return entrySet;
-        entrySet = Collections.synchronizedSet(new classEntrySet());
+        entrySet = new classEntrySet();
         return entrySet;
     }
     
     private class classEntrySet extends AbstractSet<Map.Entry<T1, T2>> {
 
+        int index = -1;
         @Override
         public Iterator<Entry<T1, T2>> iterator() {
             return getIterator(ENTRIES);
@@ -315,16 +337,56 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public int size() {
             return OpenAdressTable.this.size();
         }
+
+        @Override
+        public boolean contains(Object o) {
+            if (!(o instanceof Map.Entry)) //приинадлежность к классу
+                return false;
+            Data<T1, T2> data = (Data<T1,T2>)o;
+            T1 key = data.getKey();
+            T2 value = data.getValue();
+            int hashIndex = hashFunction(key);
+            int i = hashIndex;
+            do {
+                if (table[i] == null || table[i].isFree())
+                    return false;
+                if (key.equals(table[i].getKey())) {
+                    if (value.equals(table[i].getValue())) {
+                        index = i;
+                        return true;
+                    }
+                    else 
+                        return false;
+                }
+                i = (i+1)%table.length;
+            } while (i != hashIndex);
+            return false;
+        }
+
+        @Override
+        public void clear() {
+            OpenAdressTable.this.clear();
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            if (!contains(o))
+                return false;
+            return OpenAdressTable.this.remove(table[index].getKey()) != null;
+        }
     }
 
     
     private Collection<T2> values;
     
+    //замечание 10 - значения могут быть одинаковые, поэтому по какому
+    //значению удалять - непонятно. В стандарте hashTable для этого класса перегружены
+    //только следующие функции: iterator, size, contains и clear.
     @Override
     public Collection<T2> values() {
         if (values != null) 
             return values;
-        values = Collections.synchronizedSet(new classValues());
+        values = new classValues();
         return values;
     }
     
@@ -339,5 +401,34 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public int size() {
             return OpenAdressTable.this.size();
         }
+
+        @Override
+        public void clear() {
+            OpenAdressTable.this.clear();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+           return OpenAdressTable.this.containsValue((T2)o);
+        }
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        OpenAdressTable tbl = (OpenAdressTable)obj;
+        if (this.size() != tbl.size())
+            return false;
+        for (int i=0;i<this.table.length;i++) {
+            if (this.table[i] == null || this.table[i].isFree()) {
+                if (tbl.table[i] == null || tbl.table[i].isFree()) 
+                    continue;
+                else return false;
+            }
+            if (!this.table[i].equals(tbl.table[i]))
+                return false;
+        }
+        return true;
+    }
+    
+    
 }

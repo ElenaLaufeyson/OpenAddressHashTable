@@ -48,5 +48,13 @@ public class Data<T1,T2> implements Map.Entry<T1,T2> {
         String keyAndValue = key.toString() + "\t\t " + value.toString();
         return keyAndValue;
     }
+
+    @Override
+    public boolean equals(Object obj) {
+        Data data = (Data)obj;
+        return (this.key.equals(data.key) && this.value.equals(data.value));
+    }
+    
+    
     
 }
