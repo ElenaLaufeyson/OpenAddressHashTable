@@ -175,8 +175,29 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         System.out.println("");            
     }
     
-
+    String[][] printGUI() {
+        int hashIndex;
+        String[][] str = new String [table.length][4];
+        for (int i=0; i<table.length; i++) {
+            Arrays.fill(str[i], "");
+        }
+        for (int i=0;i<table.length;i++) {
+            str[i][1] = "[" + i + "]";
+            if (table[i] == null)
+                str[i][2] = "(null)";
+            else if (table[i].isFree())
+                str[i][2] = "(free)";
+            else {
+                hashIndex = hashFunction((T1)table[i].getKey());
+                str[i][0] += hashIndex;
+                str[i][2] += table[i].getKey();
+                str[i][3] +=  table[i].getValue();
+            }
+        }
+        return str;
+    }
     
+  
     static final int KEYS = 0;
     static final int VALUES = 1;
     static final int ENTRIES = 2;
@@ -208,7 +229,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
 
     private class Enumerator<T> implements Enumeration<T>, Iterator<T> {
 
-        int index = -1;
+        int index;
         Entry<T1, T2> entry;
         int type;
         boolean iterator;
@@ -216,6 +237,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         Enumerator(int type, boolean iterator) {
             this.type = type;
             this.iterator = iterator;
+            index = -1;
         }
 
         @Override
@@ -226,12 +248,12 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
             if (index >= table.length)
                 return false;
             while (i < table.length-1 &&
-                    (e == null || table[i].isFree())) { //пропускаю удаленные элементы
+                    (e == null || table[i] == null || table[i].isFree())) { //пропускаю удаленные элементы
                 e = t[++i];
             }
-            entry = e;
+            entry = t[i];
             index = i;
-            return e != null;
+            return entry != null;
         }
 
         @Override

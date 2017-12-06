@@ -55,6 +55,12 @@ public class Data<T1,T2> implements Map.Entry<T1,T2> {
         return (this.key.equals(data.key) && this.value.equals(data.value));
     }
     
+    @Override
+    public int hashCode() {
+        int result = 31 * Integer.parseInt(key.toString()) + 
+                13 * Integer.parseInt(value.toString());
+        return result;
+    }
     
     
 }
