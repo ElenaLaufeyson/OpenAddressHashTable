@@ -364,25 +364,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public boolean contains(Object o) {
             if (!(o instanceof Map.Entry)) //приинадлежность к классу
                 return false;
-            Data<T1, T2> data = (Data<T1,T2>)o;
-            T1 key = data.getKey();
-            T2 value = data.getValue();
-            int hashIndex = hashFunction(key);
-            int i = hashIndex;
-            do {
-                if (table[i] == null || table[i].isFree())
-                    return false;
-                if (key.equals(table[i].getKey())) {
-                    if (value.equals(table[i].getValue())) {
-                        index = i;
-                        return true;
-                    }
-                    else 
-                        return false;
-                }
-                i = (i+1)%table.length;
-            } while (i != hashIndex);
-            return false;
+            return (OpenAdressTable.this.get(((Data<T1,T2>)o).getKey()) != null);
         }
 
         @Override
@@ -412,7 +394,7 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         return values;
     }
     
-    private class classValues extends AbstractSet<T2> {
+    private class classValues extends AbstractCollection<T2> {
 
         @Override
         public Iterator<T2> iterator() {
@@ -440,17 +422,17 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         OpenAdressTable tbl = (OpenAdressTable)obj;
         if (this.size() != tbl.size())
             return false;
-        for (int i=0;i<this.table.length;i++) {
-            if (this.table[i] == null || this.table[i].isFree()) {
-                if (tbl.table[i] == null || tbl.table[i].isFree()) 
-                    continue;
-                else return false;
-            }
-            if (!this.table[i].equals(tbl.table[i]))
-                return false;
-        }
-        return true;
+        Set setThis = this.entrySet();
+        Set setTbl = tbl.entrySet();
+        return (setThis.equals(setTbl));
     }
-    
+
+    @Override
+    public int hashCode() {
+        int result = 0;
+        for (Data<T1,T2> data: this.table)
+            result += data.hashCode();
+        return result;
+    }   
     
 }
