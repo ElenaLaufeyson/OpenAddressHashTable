@@ -364,7 +364,11 @@ public class OpenAdressTable<T1,T2> implements Map<T1,T2> {
         public boolean contains(Object o) {
             if (!(o instanceof Map.Entry)) //приинадлежность к классу
                 return false;
-            return (OpenAdressTable.this.get(((Data<T1,T2>)o).getKey()) != null);
+            T1 key = ((Data<T1,T2>)o).getKey();
+            T2 tableValue = OpenAdressTable.this.get(key);
+            if (tableValue == null) //если нет ключа
+                return false;
+            return (tableValue.equals(((Data<T1,T2>)o).getValue()));
         }
 
         @Override
